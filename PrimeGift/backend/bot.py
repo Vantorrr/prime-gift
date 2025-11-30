@@ -1,8 +1,7 @@
 import logging
 import sys
 import os
-import asyncio
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, MenuButtonWebApp
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 from sqlalchemy import func
 
@@ -15,7 +14,8 @@ from app import models
 # --- КОНФИГ ---
 TOKEN = "8060581855:AAFuo9YTbgQnki1zseuaqbIESR-ahH5yCSs"
 ADMIN_IDS = [2053914171, 8141463258]
-WEBAPP_URL = "http://localhost:8080"
+# Fallback URL (локальный), но на проде будет браться из ENV
+WEBAPP_URL = "http://localhost:8080" 
 CHANNEL_URL = "https://t.me/TGiftPrime"
 
 # States
@@ -74,10 +74,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"👇 <b>Жми кнопку и забирай свой первый дроп!</b>"
         )
     
-    if WEBAPP_URL.startswith("https"):
-        play_btn = InlineKeyboardButton("🚀 ИГРАТЬ СЕЙЧАС", web_app=WebAppInfo(url=WEBAPP_URL))
+    # Берем URL из ENV (Railway) или дефолтный
+    web_app_url = os.getenv("WEBAPP_URL", WEBAPP_URL)
+    
+    # 1. Устанавливаем кнопку MENU (слева от ввода текста)
+    if web_app_url.startswith("https"):
+        try:
+            await context.bot.set_chat_menu_button(
+                chat_id=user.id,
+                menu_button=MenuButtonWebApp(text="🚀 ИГРАТЬ", web_app=WebAppInfo(url=web_app_url))
+            )
+        except Exception as e:
+            logging.error(f"Failed to set menu button: {e}")
+
+    # 2. Красивая Inline кнопка
+    if web_app_url.startswith("https"):
+        play_btn = InlineKeyboardButton("💎 ЗАПУСТИТЬ PRIME GIFT 💎", web_app=WebAppInfo(url=web_app_url))
     else:
-        play_btn = InlineKeyboardButton("🚀 ИГРАТЬ (Browser)", url=WEBAPP_URL)
+        play_btn = InlineKeyboardButton("🚀 ИГРАТЬ (Browser)", url=web_app_url)
 
     keyboard = [
         [play_btn],
