@@ -3,7 +3,7 @@ import sys
 import os
 import asyncio
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ConversationHandler
 from sqlalchemy import func
 
 # Добавляем путь к приложению, чтобы видеть базу данных
@@ -14,10 +14,18 @@ from app import models
 
 # --- КОНФИГ ---
 TOKEN = "8060581855:AAFuo9YTbgQnki1zseuaqbIESR-ahH5yCSs"
-
 ADMIN_IDS = [2053914171, 8141463258]
-WEBAPP_URL = "http://localhost:8080" # Для локального теста (в Telegram Desktop откроется, на телефоне нужен HTTPS/ngrok)
+WEBAPP_URL = "http://localhost:8080"
 CHANNEL_URL = "https://t.me/TGiftPrime"
+
+# States
+(
+    ADD_PROMO_STATE,
+    GIVE_ID,
+    GIVE_AMOUNT,
+    BROADCAST_MSG,
+    SEARCH_USER
+) = range(5)
 
 # Логирование
 logging.basicConfig(
@@ -26,13 +34,6 @@ logging.basicConfig(
 )
 
 # --- DB HELPERS ---
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 def get_stats():
     db = SessionLocal()
     try:
@@ -47,14 +48,9 @@ def give_balance(user_id: int, amount: int, currency: str):
     db = SessionLocal()
     try:
         user = db.query(models.User).filter(models.User.id == user_id).first()
-        if not user:
-            return False
-        
-        if currency == "stars":
-            user.balance_stars += amount
-        elif currency == "tickets":
-            user.balance_tickets += amount
-            
+        if not user: return False
+        if currency == "stars": user.balance_stars += amount
+        elif currency == "tickets": user.balance_tickets += amount
         db.commit()
         return True
     finally:
@@ -65,23 +61,22 @@ def give_balance(user_id: int, amount: int, currency: str):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
-    # Красивое приветствие
-    text = (
-        f"👋 <b>Привет, {user.first_name}!</b>\n\n"
-        f"🎁 Добро пожаловать в <b>Prime Gift</b> — место, где мечты становятся реальностью.\n\n"
-        f"🔥 <b>Что тебя ждет?</b>\n"
-        f"• Эксклюзивные кейсы с техникой Apple и Tesla\n"
-        f"• PvP Арена на Звезды\n"
-        f"• Ежедневные бесплатные прокруты\n\n"
-        f"👇 <b>Жми кнопку и забирай свой первый дроп!</b>"
-    )
+    if user.id in ADMIN_IDS:
+        text = (
+            f"👑 <b>Приветствую, Создатель!</b>\n\n"
+            f"⚠️ <b>Система Prime Gift работает в штатном режиме.</b>\n\n"
+            f"👇 Управление доступно через панель администратора."
+        )
+    else:
+        text = (
+            f"👋 <b>Привет, {user.first_name}!</b>\n\n"
+            f"🎁 Добро пожаловать в <b>Prime Gift</b>.\n"
+            f"👇 <b>Жми кнопку и забирай свой первый дроп!</b>"
+        )
     
-    # Telegram требует HTTPS для WebApp.
-    # Если мы локально (http), то делаем обычную кнопку-ссылку, которая откроет браузер.
     if WEBAPP_URL.startswith("https"):
         play_btn = InlineKeyboardButton("🚀 ИГРАТЬ СЕЙЧАС", web_app=WebAppInfo(url=WEBAPP_URL))
     else:
-        # Fallback для локальной разработки (откроется в Safari/Chrome)
         play_btn = InlineKeyboardButton("🚀 ИГРАТЬ (Browser)", url=WEBAPP_URL)
 
     keyboard = [
@@ -89,140 +84,351 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📢 Наш Канал", url=CHANNEL_URL)]
     ]
     
-    # Если Админ - добавляем кнопку панели
     if user.id in ADMIN_IDS:
         keyboard.append([InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")])
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Отправляем с фото
-    # Используем картинку из фронтенда (локально) или URL
     photo_path = "../frontend/public/NewYearCase.png"
-    if os.path.exists(photo_path):
-        photo = open(photo_path, "rb")
-    else:
-        photo = "https://media.istockphoto.com/id/1345334554/photo/3d-render-gift-box-with-gold-ribbon-on-blue-background.jpg?s=612x612&w=0&k=20&c=3-XnZLqXqgVqZqXqXqXqXqXqXqXqXqXqXqXqXqXqXq"
+    try:
+        if os.path.exists(photo_path):
+            await update.message.reply_photo(photo=open(photo_path, "rb"), caption=text, parse_mode="HTML", reply_markup=reply_markup)
+        else:
+            await update.message.reply_photo(photo="https://via.placeholder.com/600", caption=text, parse_mode="HTML", reply_markup=reply_markup)
+    except:
+        await update.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
-    await update.message.reply_photo(
-        photo=photo, 
-        caption=text,
-        parse_mode="HTML",
-        reply_markup=reply_markup
-    )
+# --- ADMIN PANEL ---
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     
     if user_id not in ADMIN_IDS:
-        await query.answer("Доступ запрещен ⛔️", show_alert=True)
+        await query.answer("⛔️")
         return
 
     total_users, total_stars, total_tickets = get_stats()
     
     text = (
-        f"🔒 <b>ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n\n"
+        f"🔒 <b>ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n"
+        f"➖➖➖➖➖➖➖➖➖➖\n"
         f"📊 <b>Статистика:</b>\n"
-        f"👥 Пользователей: <b>{total_users}</b>\n"
-        f"⭐️ Всего Звезд: <b>{int(total_stars):,}</b>\n"
-        f"🎫 Всего Билетов: <b>{total_tickets}</b>\n\n"
-        f"⚡️ <b>Управление:</b>\n"
-        f"Для начисления баланса используй команды:\n"
-        f"<code>/give_stars ID СУММА</code>\n"
-        f"<code>/give_tickets ID СУММА</code>"
+        f"👥 Юзеров: <b>{total_users}</b>\n"
+        f"⭐️ Звезд: <b>{int(total_stars):,}</b>\n"
+        f"🎫 Купонов: <b>{total_tickets}</b>"
     )
     
     keyboard = [
-        [InlineKeyboardButton("🔄 Обновить", callback_data="admin_panel")],
-        [InlineKeyboardButton("📢 Рассылка (Demo)", callback_data="broadcast_demo")]
+        [InlineKeyboardButton("💰 Выдать Баланс", callback_data="give_menu"), InlineKeyboardButton("🎫 Промокоды", callback_data="promo_menu")],
+        [InlineKeyboardButton("📢 Рассылка", callback_data="broadcast_start"), InlineKeyboardButton("🔎 Поиск Юзера", callback_data="search_start")],
+        [InlineKeyboardButton("🔄 Обновить", callback_data="admin_panel")]
     ]
     
-    if query.message:
-        await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
-    else:
-        await context.bot.send_message(chat_id=user_id, text=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
-async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    if user_id not in ADMIN_IDS:
+# --- PROMO MENU ---
+
+async def promo_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    text = "🎫 <b>Управление Промокодами</b>\nВыберите действие:"
+    
+    keyboard = [
+        [InlineKeyboardButton("➕ Создать Промокод", callback_data="add_promo_start")],
+        [InlineKeyboardButton("📋 Список и Удаление", callback_data="list_promos")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def list_promos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    db = SessionLocal()
+    promos = db.query(models.Promocode).all()
+    db.close()
+    
+    if not promos:
+        keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="promo_menu")]]
+        await query.edit_message_caption(caption="📭 <b>Список промокодов пуст.</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # Обработка кнопки панели из команды /admin
-    await update.message.reply_text("Открываю панель...", reply_markup=InlineKeyboardMarkup([
-        [InlineKeyboardButton("Открыть Панель", callback_data="admin_panel")]
-    ]))
-
-async def give_stars_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS: return
+    text = "📋 <b>Активные Промокоды:</b>\n\nНажми на ❌ чтобы удалить."
+    keyboard = []
     
-    try:
-        # /give_stars 12345 1000
-        args = context.args
-        if len(args) != 2:
-            await update.message.reply_text("❌ Формат: /give_stars ID СУММА")
-            return
-            
-        target_id = int(args[0])
-        amount = int(args[1])
+    for p in promos:
+        btn_text = f"❌ {p.code} ({p.current_usages}/{p.max_usages})"
+        keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"del_promo_{p.id}")])
         
-        success = give_balance(target_id, amount, "stars")
-        if success:
-            await update.message.reply_text(f"✅ Выдано {amount} ⭐️ пользователю {target_id}")
-            try:
-                await context.bot.send_message(target_id, f"🎁 <b>Администратор начислил вам {amount} Stars!</b>", parse_mode="HTML")
-            except:
-                pass # Юзер мог заблочить бота
-        else:
-            await update.message.reply_text("❌ Пользователь не найден в базе.")
-            
-    except ValueError:
-        await update.message.reply_text("❌ Ошибка в числах.")
-
-async def give_tickets_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id not in ADMIN_IDS: return
+    keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="promo_menu")])
     
+    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def delete_promo_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    promo_id = int(query.data.split("_")[-1])
+    
+    db = SessionLocal()
+    promo = db.query(models.Promocode).filter(models.Promocode.id == promo_id).first()
+    if promo:
+        code_name = promo.code
+        db.delete(promo)
+        db.commit()
+        await query.answer(f"✅ Промокод {code_name} удален!", show_alert=True)
+    else:
+        await query.answer("❌ Промокод не найден.", show_alert=True)
+    db.close()
+    
+    await list_promos(update, context)
+
+# --- GIVE BALANCE FLOW ---
+
+async def give_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    text = "💰 <b>Что выдаем?</b>"
+    keyboard = [
+        [InlineKeyboardButton("⭐️ Звезды", callback_data="give_type_stars"), InlineKeyboardButton("🎫 Купоны", callback_data="give_type_tickets")],
+        [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
+    ]
+    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def start_give(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    currency = query.data.split("_")[-1]
+    context.user_data['give_currency'] = currency
+    
+    await query.edit_message_caption(
+        f"✍️ Введите <b>ID пользователя</b>, которому выдаем {'⭐️ Звезды' if currency == 'stars' else '🎫 Купоны'}:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]])
+    )
+    return GIVE_ID
+
+async def handle_give_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
-        args = context.args
-        if len(args) != 2:
-            await update.message.reply_text("❌ Формат: /give_tickets ID СУММА")
-            return
-            
-        target_id = int(args[0])
-        amount = int(args[1])
+        user_id = int(update.message.text.strip())
+        context.user_data['give_id'] = user_id
         
-        success = give_balance(target_id, amount, "tickets")
-        if success:
-            await update.message.reply_text(f"✅ Выдано {amount} 🎫 пользователю {target_id}")
-            try:
-                await context.bot.send_message(target_id, f"🎁 <b>Администратор начислил вам {amount} Tickets!</b>", parse_mode="HTML")
-            except:
-                pass
-        else:
-            await update.message.reply_text("❌ Пользователь не найден в базе.")
+        db = SessionLocal()
+        user = db.query(models.User).filter(models.User.id == user_id).first()
+        db.close()
+        
+        if not user:
+            await update.message.reply_text("❌ Пользователь не найден в базе. Попробуй другой ID или нажми /cancel")
+            return GIVE_ID
             
+        await update.message.reply_text(
+            f"✅ Юзер: <b>{user.first_name}</b> (@{user.username})\n"
+            f"✍️ Введите <b>СУММУ</b>:", 
+            parse_mode="HTML"
+        )
+        return GIVE_AMOUNT
     except ValueError:
-        await update.message.reply_text("❌ Ошибка в числах.")
+        await update.message.reply_text("❌ Это не число. Введите ID цифрами.")
+        return GIVE_ID
+
+async def handle_give_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        amount = int(update.message.text.strip())
+        user_id = context.user_data['give_id']
+        currency = context.user_data['give_currency']
+        
+        give_balance(user_id, amount, currency)
+        
+        currency_icon = "⭐️" if currency == "stars" else "🎫"
+        await update.message.reply_text(f"✅ <b>Успешно!</b>\nВыдано: {amount} {currency_icon}\nПользователю: {user_id}", parse_mode="HTML")
+        
+        try:
+            await context.bot.send_message(user_id, f"🎁 <b>Администратор начислил вам {amount} {currency_icon}!</b>", parse_mode="HTML")
+        except: pass
+        
+        text = "Вы вернулись в меню."
+        keyboard = [[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return ConversationHandler.END
+    except ValueError:
+        await update.message.reply_text("❌ Введите число.")
+        return GIVE_AMOUNT
+
+# --- BROADCAST FLOW ---
+
+async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_caption(
+        "📢 <b>Рассылка</b>\n\nОтправьте <b>сообщение</b> (текст, фото), которое получат ВСЕ пользователи.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]])
+    )
+    return BROADCAST_MSG
+
+async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = update.message
+    
+    db = SessionLocal()
+    users = db.query(models.User).all()
+    db.close()
+    
+    count = 0
+    status_msg = await update.message.reply_text("⏳ Начинаю рассылку...")
+    
+    for u in users:
+        try:
+            await msg.copy(chat_id=u.id)
+            count += 1
+        except: pass
+    
+    await status_msg.edit_text(f"✅ <b>Рассылка завершена!</b>\nПолучили: {count} из {len(users)}", parse_mode="HTML")
+    
+    text = "Вы вернулись в меню."
+    keyboard = [[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return ConversationHandler.END
+
+# --- SEARCH FLOW ---
+
+async def search_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_caption(
+        "🔎 <b>Поиск пользователя</b>\nВведите <b>ID</b> или <b>Username</b> (без @):",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]])
+    )
+    return SEARCH_USER
+
+async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query_text = update.message.text.strip()
+    db = SessionLocal()
+    
+    if query_text.isdigit():
+        user = db.query(models.User).filter(models.User.id == int(query_text)).first()
+    else:
+        user = db.query(models.User).filter(models.User.username == query_text.replace("@", "")).first()
+        
+    if not user:
+        await update.message.reply_text("❌ Не найден.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]))
+        db.close()
+        return ConversationHandler.END
+    
+    referrals = db.query(models.User).filter(models.User.referrer_id == user.id).count()
+    
+    text = (
+        f"👤 <b>Профиль:</b> {user.first_name} (@{user.username})\n"
+        f"🆔 ID: <code>{user.id}</code>\n"
+        f"⭐️ Баланс: {user.balance_stars}\n"
+        f"🎫 Купоны: {user.balance_tickets}\n"
+        f"👥 Рефералов: {referrals}\n"
+        f"📅 Рег: {user.created_at.strftime('%Y-%m-%d')}"
+    )
+    
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]))
+    db.close()
+    return ConversationHandler.END
+
+# --- ADD PROMO ---
+
+async def start_add_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    text = (
+        "➕ <b>Создание Промокода</b>\n\n"
+        "Введите <b>КОД</b> и <b>ЛИМИТ</b> через пробел.\n"
+        "<i>Пример:</i> <code>WELCOME 1000</code>\n"
+        "<i>Пример 2:</i> <code>SECRET</code> (лимит 10000)"
+    )
+    keyboard = [[InlineKeyboardButton("🔙 Отмена", callback_data="cancel_add")]]
+    
+    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    return ADD_PROMO_STATE
+
+async def handle_promo_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text_in = update.message.text.strip().split()
+    code = text_in[0].upper()
+    limit = int(text_in[1]) if len(text_in) > 1 else 10000
+    
+    db = SessionLocal()
+    exists = db.query(models.Promocode).filter(models.Promocode.code == code).first()
+    if exists:
+        await update.message.reply_text(f"⚠️ Промокод <b>{code}</b> уже существует! Попробуй другой.")
+        db.close()
+        return ADD_PROMO_STATE
+        
+    new_promo = models.Promocode(code=code, max_usages=limit)
+    db.add(new_promo)
+    db.commit()
+    db.close()
+    
+    await update.message.reply_text(f"✅ <b>Успешно!</b>\nПромокод: <code>{code}</code>\nЛимит: {limit}")
+    
+    text = "Вы вернулись в меню."
+    keyboard = [[InlineKeyboardButton("🎫 К промокодам", callback_data="promo_menu")]]
+    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    return ConversationHandler.END
+
+async def cancel_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer("Отменено")
+    await promo_menu(update, context)
+    return ConversationHandler.END
+
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer("Отменено")
+    await admin_panel(update, context)
+    return ConversationHandler.END
 
 async def broadcast_demo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    await query.answer("Рассылка в разработке (нужен State Machine)", show_alert=True)
+    await query.answer("Рассылка в разработке", show_alert=True)
 
-# --- MAIN ---
 if __name__ == '__main__':
-    if TOKEN == "YOUR_BOT_TOKEN":
-        print("❌ ОШИБКА: Вставь токен бота в файл PrimeGift/backend/bot.py")
-        exit()
-
     app = ApplicationBuilder().token(TOKEN).build()
     
+    # CONVERSATION HANDLERS
+    add_promo_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(start_add_promo, pattern="^add_promo_start$")],
+        states={ADD_PROMO_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_promo_input)]},
+        fallbacks=[CallbackQueryHandler(cancel_add, pattern="^cancel_add$")]
+    )
+    
+    give_balance_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(start_give, pattern="^give_type_")],
+        states={
+            GIVE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_give_id)],
+            GIVE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_give_amount)]
+        },
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$")]
+    )
+    
+    broadcast_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(broadcast_start, pattern="^broadcast_start$")],
+        states={BROADCAST_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, handle_broadcast)]},
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$")]
+    )
+    
+    search_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(search_start, pattern="^search_start$")],
+        states={SEARCH_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_search)]},
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$")]
+    )
+    
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("admin", admin_command))
-    app.add_handler(CommandHandler("give_stars", give_stars_command))
-    app.add_handler(CommandHandler("give_tickets", give_tickets_command))
+    app.add_handler(add_promo_handler)
+    app.add_handler(give_balance_handler)
+    app.add_handler(broadcast_handler)
+    app.add_handler(search_handler)
     
+    # MENU HANDLERS
     app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
-    app.add_handler(CallbackQueryHandler(broadcast_demo, pattern="^broadcast_demo$"))
+    app.add_handler(CallbackQueryHandler(give_menu, pattern="^give_menu$"))
+    app.add_handler(CallbackQueryHandler(promo_menu, pattern="^promo_menu$"))
+    app.add_handler(CallbackQueryHandler(list_promos, pattern="^list_promos$"))
+    app.add_handler(CallbackQueryHandler(delete_promo_btn, pattern="^del_promo_"))
     
-    print("🤖 Бот Prime Gift запущен...")
+    print("🤖 Bot Prime Gift Ultimate is running...")
     app.run_polling()
-

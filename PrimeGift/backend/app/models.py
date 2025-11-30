@@ -39,6 +39,7 @@ class User(Base):
     # Relationships
     inventory = relationship("UserItem", back_populates="user")
     referrer = relationship("User", remote_side=[id], backref="referrals")
+    promocodes_used = relationship("UserPromocode", backref="user")
 
 class Case(Base):
     __tablename__ = "cases"
@@ -90,3 +91,18 @@ class UserItem(Base):
     
     user = relationship("User", back_populates="inventory")
     item = relationship("Item")
+
+class Promocode(Base):
+    __tablename__ = "promocodes"
+    id = Column(Integer, primary_key=True, index=True)
+    code = Column(String, unique=True, index=True)
+    is_active = Column(Boolean, default=True)
+    max_usages = Column(Integer, default=10000)
+    current_usages = Column(Integer, default=0)
+
+class UserPromocode(Base):
+    __tablename__ = "user_promocodes"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    promocode_id = Column(Integer, ForeignKey("promocodes.id"))
+    used_at = Column(DateTime(timezone=True), server_default=func.now())

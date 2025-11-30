@@ -4,41 +4,65 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  /* Сложный фон: Темный графит + Фиолетовое свечение сверху + Текстура шума */
-  background-color: #050505;
-  background-image: 
-    /* Текстура шума */
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E"),
-    /* Основной градиент: Сверху светлее (от header), снизу полная тьма */
-    radial-gradient(circle at 50% -20%, #1e1b4b 0%, #09090b 40%, #000000 100%);
-  background-attachment: fixed; /* Фон не скроллится */
+  background: #000000;
   min-height: 100vh;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-/* Анимация мерцания для текста */
-@keyframes text-shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+/* Premium Background with Noise */
+.bg-premium {
+  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #09090b 60%, #000000 100%);
+  position: relative;
 }
 
-/* Убираем скроллбар */
+.bg-premium::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3E%3C/svg%3E");
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Carbon Card Style */
+.carbon-card {
+  background: rgba(24, 24, 27, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.glass-panel {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Text Effects */
+.text-glow-gold {
+  text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+}
+
+.text-glow-blue {
+  text-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+}
+
+/* Scrollbar Hide */
 ::-webkit-scrollbar {
   display: none;
 }
-
-.safe-pb {
-    padding-bottom: env(safe-area-inset-bottom, 20px);
-}
-
-/* Эффект карбона для карточек стал "Стеклом" */
-.carbon-card {
-    background: rgba(24, 24, 27, 0.6); /* Полупрозрачный */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+* {
+  scrollbar-width: none;
 }
