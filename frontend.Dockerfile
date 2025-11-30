@@ -11,5 +11,8 @@ COPY PrimeGift/frontend/ .
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
+# Set hostname to 0.0.0.0 to allow external access
+ENV HOSTNAME "0.0.0.0"
+
 CMD ["npm", "start"]
 
