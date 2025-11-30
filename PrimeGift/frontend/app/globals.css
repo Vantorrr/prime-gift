@@ -4,65 +4,75 @@
 
 :root {
   --foreground-rgb: 255, 255, 255;
-  --background-start-rgb: 0, 0, 0;
+  --background-start-rgb: 5, 5, 10; /* Deep dark blue-black */
   --background-end-rgb: 0, 0, 0;
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: #000000;
-  min-height: 100vh;
+  background: linear-gradient(to bottom, rgb(var(--background-start-rgb)), rgb(var(--background-end-rgb)));
   overflow-x: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Premium noise texture overlay */
+  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
+  min-height: 100vh;
 }
 
-/* Premium Background with Noise */
-.bg-premium {
-  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #09090b 60%, #000000 100%);
-  position: relative;
+/* Custom Animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
-.bg-premium::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3E%3C/svg%3E");
-  opacity: 0.4;
-  pointer-events: none;
-  z-index: 0;
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.6; transform: scale(1); filter: blur(40px); }
+  50% { opacity: 0.8; transform: scale(1.1); filter: blur(50px); }
 }
 
-/* Carbon Card Style */
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(-5%); }
+  50% { transform: translateY(5%); }
+}
+
+@keyframes load-bar {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s infinite ease-in-out;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 3s infinite ease-in-out;
+}
+
+.animate-load-bar {
+  animation: load-bar 2.5s ease-out forwards;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
 .carbon-card {
-  background: rgba(24, 24, 27, 0.4);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  background: linear-gradient(145deg, #18181b, #09090b);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.glass-panel {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.text-shadow {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
 }
 
-/* Text Effects */
-.text-glow-gold {
-  text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
-}
-
-.text-glow-blue {
-  text-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+.text-shadow-sm {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Scrollbar Hide */
 ::-webkit-scrollbar {
-  display: none;
-}
-* {
-  scrollbar-width: none;
+    display: none;
 }

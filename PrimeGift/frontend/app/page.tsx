@@ -99,15 +99,16 @@ export default function Home() {
   useEffect(() => {
     let mounted = true;
     const initApp = async () => {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // PREMIUM DELAY: 2500ms for users to enjoy the loader
+      await new Promise(resolve => setTimeout(resolve, 2500));
       if (!mounted) return;
 
       const tg = typeof window !== "undefined" && window.Telegram?.WebApp;
       
       if (tg?.initData) {
         tg.ready(); tg.expand();
-        tg.setHeaderColor("#09090b");
-        tg.setBackgroundColor("#09090b");
+        tg.setHeaderColor("#05050a"); // Match new background
+        tg.setBackgroundColor("#05050a");
         try {
           const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
           const startParam = tg.initDataUnsafe?.start_param;
@@ -152,7 +153,7 @@ export default function Home() {
     
     const safetyTimer = setTimeout(() => {
         if (mounted && loading) setLoading(false);
-    }, 5000);
+    }, 7000); // Safety timer extended
 
     initApp();
     return () => { mounted = false; clearTimeout(safetyTimer); };
@@ -226,19 +227,20 @@ export default function Home() {
   if (loading) return <Loader />;
 
   return (
-    <main className="flex min-h-screen flex-col max-w-md mx-auto shadow-2xl text-zinc-100 font-sans relative">
+    <main className="flex min-h-screen flex-col max-w-md mx-auto shadow-2xl text-zinc-100 font-sans relative overflow-hidden">
       
-      {/* Background Glow Spots */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[40%] bg-violet-900/20 blur-[120px] rounded-full mix-blend-screen animate-pulse-slow"></div>
-          <div className="absolute bottom-[10%] right-[-10%] w-[60%] h-[50%] bg-blue-900/10 blur-[100px] rounded-full mix-blend-screen"></div>
+      {/* Enhanced Background Glow Spots */}
+      <div className="fixed inset-0 pointer-events-none z-0">
+          <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[60%] bg-violet-900/30 blur-[100px] rounded-full mix-blend-screen animate-pulse-glow"></div>
+          <div className="absolute bottom-[10%] right-[-10%] w-[60%] h-[50%] bg-blue-900/20 blur-[80px] rounded-full mix-blend-screen animate-pulse-glow delay-1000"></div>
+          <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] bg-fuchsia-900/10 blur-[120px] rounded-full mix-blend-overlay"></div>
       </div>
 
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-zinc-950/60 backdrop-blur-xl px-4 py-3 flex justify-between items-center border-b border-white/5">
+      <header className="sticky top-0 z-50 bg-[#05050a]/70 backdrop-blur-xl px-4 py-3 flex justify-between items-center border-b border-white/5 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-700/50 to-zinc-900/50 p-[1px] shadow-inner">
-             <div className="w-full h-full rounded-xl bg-zinc-900/80 overflow-hidden flex items-center justify-center">
+             <div className="w-full h-full rounded-xl bg-[#0a0a0f] overflow-hidden flex items-center justify-center">
                 {user?.photo_url ? (
                     <img src={user.photo_url} alt="ava" className="w-full h-full object-cover" />
                 ) : (
@@ -248,10 +250,12 @@ export default function Home() {
           </div>
           <div className="flex flex-col">
              <div className="flex items-center gap-2">
-                 <span className="font-bold text-sm text-white tracking-wide">{user?.username}</span>
-                 {user?.is_admin && <span className="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-bold tracking-widest shadow-lg shadow-red-500/50">ADMIN</span>}
+                 <span className="font-bold text-sm text-white tracking-wide drop-shadow-md">{user?.username}</span>
+                 {user?.is_admin && <span className="bg-red-600 text-white text-[8px] px-1.5 py-0.5 rounded font-bold tracking-widest shadow-[0_0_10px_rgba(220,38,38,0.5)]">ADMIN</span>}
              </div>
-             <span className="text-[10px] text-emerald-500 font-mono uppercase tracking-wider">Online</span>
+             <span className="text-[10px] text-emerald-500 font-mono uppercase tracking-wider flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> Online
+             </span>
           </div>
         </div>
         
@@ -271,12 +275,12 @@ export default function Home() {
       </div>
 
       {/* NAV */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-950/80 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-4 flex justify-between items-center z-50 max-w-md mx-auto">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#05050a]/90 backdrop-blur-xl border-t border-white/5 pb-safe pt-2 px-4 flex justify-between items-center z-50 max-w-md mx-auto">
           <NavItem active={activeTab === "home"} onClick={() => setActiveTab("home")} icon={HomeIcon} label="Главная" />
           <NavItem active={activeTab === "upgrade"} onClick={() => setActiveTab("upgrade")} icon={Zap} label="Апгрейд" />
           
           <div className="relative -top-6" onClick={() => setActiveTab("cases")}>
-            <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transform transition-all active:scale-95 cursor-pointer border-[5px] border-zinc-950 ${activeTab === "cases" ? "bg-gradient-to-b from-yellow-400 to-yellow-600 shadow-yellow-500/50 scale-110" : "bg-zinc-800"}`}>
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl transform transition-all active:scale-95 cursor-pointer border-[5px] border-[#05050a] ${activeTab === "cases" ? "bg-gradient-to-b from-yellow-400 to-yellow-600 shadow-yellow-500/50 scale-110" : "bg-zinc-800"}`}>
                 <Gift className={`w-7 h-7 ${activeTab === "cases" ? "text-zinc-900 animate-bounce" : "text-zinc-400"}`} />
             </div>
           </div>
@@ -742,10 +746,29 @@ function ProfileView({ user }: { user: User | null }) {
 
 function Loader() {
     return (
-        <div className="flex h-screen w-full flex-col items-center justify-center bg-zinc-950">
-            <Gift className="w-12 h-12 text-violet-600 animate-bounce mb-4" />
-            <div className="w-32 h-1 bg-zinc-800 rounded-full overflow-hidden">
-                <div className="h-full w-1/2 bg-violet-600 animate-[shimmer_1s_infinite_linear]"></div>
+        <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050505] overflow-hidden font-sans">
+            {/* Background Effects */}
+            <div className="absolute top-[-20%] left-[-20%] w-[70%] h-[70%] bg-violet-600/20 blur-[120px] rounded-full animate-pulse-glow"></div>
+            <div className="absolute bottom-[-20%] right-[-20%] w-[70%] h-[70%] bg-blue-600/20 blur-[120px] rounded-full animate-pulse-glow" style={{ animationDelay: "1s" }}></div>
+
+            {/* Logo Area */}
+            <div className="relative flex flex-col items-center z-10">
+                <div className="relative mb-8">
+                    <div className="absolute inset-0 bg-violet-500 blur-[40px] opacity-50 animate-pulse"></div>
+                    <Gift className="w-24 h-24 text-white relative z-10 drop-shadow-[0_0_15px_rgba(139,92,246,0.8)] animate-bounce-slow" />
+                </div>
+                
+                <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-200 to-white tracking-tighter italic uppercase mb-8 drop-shadow-lg animate-pulse">
+                    Prime Gift
+                </h1>
+
+                {/* Progress Bar */}
+                <div className="w-64 h-1.5 bg-zinc-800/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
+                    <div className="h-full bg-gradient-to-r from-violet-600 via-fuchsia-500 to-blue-600 animate-load-bar w-full origin-left"></div>
+                </div>
+                <div className="mt-4 text-[10px] font-bold text-zinc-500 uppercase tracking-[0.3em] animate-pulse">
+                    System Loading...
+                </div>
             </div>
         </div>
     )
