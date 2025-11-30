@@ -126,13 +126,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    photo_path = "../frontend/public/NewYearCase.png"
+    # НОВОЕ ФОТО
+    photo_url = "https://i.ibb.co/67ZtNzKp/1764531399692c9cc7b1513.png"
+    
     try:
-        if os.path.exists(photo_path):
-            await update.message.reply_photo(photo=open(photo_path, "rb"), caption=text, parse_mode="HTML", reply_markup=reply_markup)
-        else:
-            await update.message.reply_photo(photo="https://via.placeholder.com/600", caption=text, parse_mode="HTML", reply_markup=reply_markup)
-    except:
+        await update.message.reply_photo(photo=photo_url, caption=text, parse_mode="HTML", reply_markup=reply_markup)
+    except Exception as e:
+        logging.error(f"Photo error: {e}")
         await update.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
 # --- ADMIN PANEL ---
