@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  /* Сложный фон: Темный графит + Фиолетовое свечение сверху + Текстура шума */
+  background-color: #050505;
+  background-image: 
+    /* Текстура шума */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.04'/%3E%3C/svg%3E"),
+    /* Основной градиент: Сверху светлее (от header), снизу полная тьма */
+    radial-gradient(circle at 50% -20%, #1e1b4b 0%, #09090b 40%, #000000 100%);
+  background-attachment: fixed; /* Фон не скроллится */
+  min-height: 100vh;
+}
+
+/* Анимация мерцания для текста */
+@keyframes text-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* Убираем скроллбар */
+::-webkit-scrollbar {
+  display: none;
+}
+
+.safe-pb {
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+/* Эффект карбона для карточек стал "Стеклом" */
+.carbon-card {
+    background: rgba(24, 24, 27, 0.6); /* Полупрозрачный */
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
