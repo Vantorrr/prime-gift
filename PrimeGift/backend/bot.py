@@ -116,13 +116,22 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    # Сразу отвечаем, чтобы убрать часики
+    try:
+        await query.answer()
+    except:
+        pass
+
     user_id = query.from_user.id
     
     if user_id not in ADMIN_IDS:
-        await query.answer("⛔️")
         return
 
-    total_users, total_stars, total_tickets = get_stats()
+    try:
+        total_users, total_stars, total_tickets = get_stats()
+    except Exception as e:
+        logging.error(f"DB Error: {e}")
+        total_users, total_stars, total_tickets = 0, 0, 0
     
     text = (
         f"🔒 <b>ПАНЕЛЬ АДМИНИСТРАТОРА</b>\n"
