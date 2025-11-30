@@ -137,7 +137,7 @@ export default function Home() {
                  errorMsg = `API Error: ${e.message}`;
                  if (e.response) errorMsg += ` (${e.response.status})`;
              }
-             if (tg) tg.showAlert(`Ошибка входа: ${errorMsg}\nURL: ${process.env.NEXT_PUBLIC_API_URL}`);
+             if (tg) tg.showAlert(`Ошибка входа: ${errorMsg}\nURL: ${API_URL}`);
              
              if (!user) setUser({ id: 0, username: "Guest", balance_stars: 0, balance_tickets: 0 });
              setCases([
