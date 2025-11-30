@@ -238,11 +238,12 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col max-w-md mx-auto shadow-2xl text-zinc-100 font-sans relative overflow-hidden">
       
-      {/* Enhanced Background Glow Spots */}
+      {/* Ambient Background Effects */}
+      <div className="gold-dust"></div>
+      
       <div className="fixed inset-0 pointer-events-none z-0">
-          <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[60%] bg-violet-900/30 blur-[100px] rounded-full mix-blend-screen animate-pulse-glow"></div>
-          <div className="absolute bottom-[10%] right-[-10%] w-[60%] h-[50%] bg-blue-900/20 blur-[80px] rounded-full mix-blend-screen animate-pulse-glow delay-1000"></div>
-          <div className="absolute top-[40%] left-[30%] w-[40%] h-[40%] bg-fuchsia-900/10 blur-[120px] rounded-full mix-blend-overlay"></div>
+          <div className="absolute top-[-20%] left-[20%] w-[60%] h-[60%] bg-violet-600/20 blur-[120px] rounded-full animate-pulse-glow"></div>
+          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[100px] rounded-full animate-pulse-glow delay-1000"></div>
       </div>
 
       {/* Header */}
