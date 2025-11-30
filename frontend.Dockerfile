@@ -7,6 +7,9 @@ RUN npm install
 
 COPY PrimeGift/frontend/ .
 
+# Build with ignore errors
+ENV NEXT_TELEMETRY_DISABLED 1
 RUN npm run build
 
 CMD ["npm", "start"]
+
