@@ -1,22 +1,18 @@
 [build]
 builder = "DOCKERFILE"
 
-[deploy]
-startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
-healthcheckPath = "/"
-healthcheckTimeout = 100
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
-
 [[services]]
 name = "backend"
-rootDirectory = "PrimeGift/backend"
-dockerfilePath = "Dockerfile"
+rootDirectory = "/"
+dockerfilePath = "PrimeGift/backend/Dockerfile"
+
 [services.env]
 PORT = "8000"
 
 [[services]]
 name = "frontend"
-rootDirectory = "PrimeGift/frontend"
-dockerfilePath = "Dockerfile"
+rootDirectory = "/"
+dockerfilePath = "PrimeGift/frontend/Dockerfile"
 
+[services.env]
+PORT = "3000"
