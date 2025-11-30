@@ -5,6 +5,10 @@ import Image from "next/image";
 import { Star, Hexagon, Gift, Users, Zap, Swords, Sparkles, ChevronRight, Copy, Settings, Trophy, Skull, Clock, Home as HomeIcon, X, Info, Ticket as TicketIcon } from "lucide-react";
 import axios from "axios";
 
+// --- CONFIGURATION ---
+// HARDCODED API URL
+const API_URL = "https://motivated-comfort-production.up.railway.app";
+
 interface User {
   id: number;
   username: string;
@@ -65,7 +69,7 @@ export default function Home() {
       } else if (subTaskStatus === 'check') {
           // Call API
           try {
-              const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+              // API_URL is global now
               // We need initData for check. Assuming we have user or can send empty if demo.
               // Better to use current initData from WebApp if available, but we don't store it in state.
               // Let's just simulate success for demo or try call.
@@ -110,7 +114,7 @@ export default function Home() {
         tg.setHeaderColor("#05050a"); // Match new background
         tg.setBackgroundColor("#05050a");
         try {
-          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          // API_URL is global now
           const startParam = tg.initDataUnsafe?.start_param;
           
           const res = await axios.post(`${API_URL}/api/users/auth`, { 
@@ -146,7 +150,7 @@ export default function Home() {
          if (mounted) {
              setUser({ id: 1, username: "Demo User", balance_stars: 1250, balance_tickets: 5 });
              try {
-                const API_URL = "http://localhost:8000";
+                // API_URL is global now
                 const casesRes = await axios.get(`${API_URL}/api/cases/`, { timeout: 2000 });
                 setCases(casesRes.data);
              } catch {
@@ -188,7 +192,7 @@ export default function Home() {
       setShowPromoModal(false);
 
       try {
-          const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+          // API_URL is global now
           const tg = window.Telegram?.WebApp;
           
           if (c.is_limited) {
