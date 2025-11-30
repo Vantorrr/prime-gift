@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Node
+node_modules/
+.next/
+out/
+.DS_Store
+
+# Cursor/IDE
+.idea/
+.vscode/
+terminals/
+
