@@ -115,14 +115,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- ADMIN PANEL ---
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    # Сразу отвечаем, чтобы убрать часики
-    try:
-        await query.answer()
-    except:
-        pass
-
-    user_id = query.from_user.id
+    # Если это не callback (например, вызван из ConversationHandler), update.callback_query может быть None
+    if update.callback_query:
+        query = update.callback_query
+        user_id = query.from_user.id
+        try: await query.answer() 
+        except: pass
+    else:
+        # Если вызвано как fallback
+        query = update.message
+        user_id = query.from_user.id
     
     if user_id not in ADMIN_IDS:
         return
@@ -148,7 +150,12 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔄 Обновить", callback_data="admin_panel")]
     ]
     
-    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    if update.callback_query:
+        await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    else:
+        # Если вызвано как fallback (новым сообщением)
+        await query.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        return ConversationHandler.END
 
 # --- PROMO MENU ---
 
@@ -412,11 +419,15 @@ async def broadcast_demo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
     
+    # FALLBACK for admin panel
+    admin_handler = CallbackQueryHandler(admin_panel, pattern="^admin_panel$")
+
     # CONVERSATION HANDLERS
     add_promo_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_add_promo, pattern="^add_promo_start$")],
         states={ADD_PROMO_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_promo_input)]},
-        fallbacks=[CallbackQueryHandler(cancel_add, pattern="^cancel_add$")]
+        fallbacks=[CallbackQueryHandler(cancel_add, pattern="^cancel_add$"), admin_handler],
+        allow_reentry=True
     )
     
     give_balance_handler = ConversationHandler(
@@ -425,29 +436,32 @@ if __name__ == '__main__':
             GIVE_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_give_id)],
             GIVE_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_give_amount)]
         },
-        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$")]
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), admin_handler],
+        allow_reentry=True
     )
     
     broadcast_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(broadcast_start, pattern="^broadcast_start$")],
         states={BROADCAST_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, handle_broadcast)]},
-        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$")]
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), admin_handler],
+        allow_reentry=True
     )
     
     search_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(search_start, pattern="^search_start$")],
         states={SEARCH_USER: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_search)]},
-        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$")]
+        fallbacks=[CallbackQueryHandler(cancel, pattern="^cancel$"), admin_handler],
+        allow_reentry=True
     )
     
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(admin_handler) # Глобальный хендлер (приоритетный)
     app.add_handler(add_promo_handler)
     app.add_handler(give_balance_handler)
     app.add_handler(broadcast_handler)
     app.add_handler(search_handler)
     
     # MENU HANDLERS
-    app.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
     app.add_handler(CallbackQueryHandler(give_menu, pattern="^give_menu$"))
     app.add_handler(CallbackQueryHandler(promo_menu, pattern="^promo_menu$"))
     app.add_handler(CallbackQueryHandler(list_promos, pattern="^list_promos$"))
