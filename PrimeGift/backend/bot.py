@@ -56,6 +56,29 @@ def give_balance(user_id: int, amount: int, currency: str):
     finally:
         db.close()
 
+# --- UI HELPER (UNIVERSAL EDIT) ---
+async def smart_edit(query, text, keyboard=None):
+    """
+    Умная функция, которая меняет сообщение независимо от того,
+    была ли там картинка или только текст.
+    """
+    reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
+    
+    try:
+        # 1. Пробуем изменить подпись (если это фото)
+        await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=reply_markup)
+    except Exception:
+        try:
+            # 2. Если не вышло (нет фото), меняем текст сообщения
+            await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=reply_markup)
+        except Exception as e:
+            logging.error(f"Smart edit failed: {e}")
+            # 3. Если вообще всё плохо (сообщение удалено), шлем новое
+            try:
+                await query.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
+            except:
+                pass
+
 # --- HANDLERS ---
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,7 +100,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Берем URL из ENV (Railway) или дефолтный
     web_app_url = os.getenv("WEBAPP_URL", WEBAPP_URL)
     
-    # 1. Устанавливаем кнопку MENU (слева от ввода текста)
+    # 1. Устанавливаем кнопку MENU
     if web_app_url.startswith("https"):
         try:
             await context.bot.set_chat_menu_button(
@@ -87,7 +110,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logging.error(f"Failed to set menu button: {e}")
 
-    # 2. Красивая Inline кнопка
+    # 2. Inline кнопка
     if web_app_url.startswith("https"):
         play_btn = InlineKeyboardButton("💎 ЗАПУСТИТЬ PRIME GIFT 💎", web_app=WebAppInfo(url=web_app_url))
     else:
@@ -115,14 +138,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # --- ADMIN PANEL ---
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Если это не callback (например, вызван из ConversationHandler), update.callback_query может быть None
+    # Обработка вызова (callback или message)
     if update.callback_query:
         query = update.callback_query
         user_id = query.from_user.id
         try: await query.answer() 
         except: pass
     else:
-        # Если вызвано как fallback
         query = update.message
         user_id = query.from_user.id
     
@@ -151,20 +173,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     if update.callback_query:
-        try:
-            await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
-        except Exception:
-            # Если это не фото, а текст - пробуем редактировать текст
-            try:
-                await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
-            except Exception as e:
-                logging.error(f"Edit message error: {e}")
-                # Если всё совсем плохо - шлем новое
-                await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
-        
-        return ConversationHandler.END
+        await smart_edit(query, text, keyboard)
     else:
-        # Если вызвано как fallback (новым сообщением)
         await query.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
 
@@ -175,13 +185,12 @@ async def promo_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     text = "🎫 <b>Управление Промокодами</b>\nВыберите действие:"
-    
     keyboard = [
         [InlineKeyboardButton("➕ Создать Промокод", callback_data="add_promo_start")],
         [InlineKeyboardButton("📋 Список и Удаление", callback_data="list_promos")],
         [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
     ]
-    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    await smart_edit(query, text, keyboard)
 
 async def list_promos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -193,19 +202,17 @@ async def list_promos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     if not promos:
         keyboard = [[InlineKeyboardButton("🔙 Назад", callback_data="promo_menu")]]
-        await query.edit_message_caption(caption="📭 <b>Список промокодов пуст.</b>", parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        await smart_edit(query, "📭 <b>Список промокодов пуст.</b>", keyboard)
         return
 
     text = "📋 <b>Активные Промокоды:</b>\n\nНажми на ❌ чтобы удалить."
     keyboard = []
-    
     for p in promos:
         btn_text = f"❌ {p.code} ({p.current_usages}/{p.max_usages})"
         keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"del_promo_{p.id}")])
         
     keyboard.append([InlineKeyboardButton("🔙 Назад", callback_data="promo_menu")])
-    
-    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    await smart_edit(query, text, keyboard)
 
 async def delete_promo_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -234,18 +241,17 @@ async def give_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("⭐️ Звезды", callback_data="give_type_stars"), InlineKeyboardButton("🎫 Купоны", callback_data="give_type_tickets")],
         [InlineKeyboardButton("🔙 Назад", callback_data="admin_panel")]
     ]
-    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    await smart_edit(query, text, keyboard)
 
 async def start_give(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     currency = query.data.split("_")[-1]
     context.user_data['give_currency'] = currency
     
-    await query.edit_message_caption(
-        f"✍️ Введите <b>ID пользователя</b>, которому выдаем {'⭐️ Звезды' if currency == 'stars' else '🎫 Купоны'}:",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]])
-    )
+    text = f"✍️ Введите <b>ID пользователя</b>, которому выдаем {'⭐️ Звезды' if currency == 'stars' else '🎫 Купоны'}:"
+    keyboard = [[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]]
+    
+    await smart_edit(query, text, keyboard)
     return GIVE_ID
 
 async def handle_give_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -286,9 +292,9 @@ async def handle_give_amount(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await context.bot.send_message(user_id, f"🎁 <b>Администратор начислил вам {amount} {currency_icon}!</b>", parse_mode="HTML")
         except: pass
         
-        text = "Вы вернулись в меню."
+        # Возврат в меню
         keyboard = [[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("Вы вернулись в меню.", reply_markup=InlineKeyboardMarkup(keyboard))
         return ConversationHandler.END
     except ValueError:
         await update.message.reply_text("❌ Введите число.")
@@ -299,16 +305,13 @@ async def handle_give_amount(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_caption(
-        "📢 <b>Рассылка</b>\n\nОтправьте <b>сообщение</b> (текст, фото), которое получат ВСЕ пользователи.",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]])
-    )
+    text = "📢 <b>Рассылка</b>\n\nОтправьте <b>сообщение</b> (текст, фото), которое получат ВСЕ пользователи."
+    keyboard = [[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]]
+    await smart_edit(query, text, keyboard)
     return BROADCAST_MSG
 
 async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
-    
     db = SessionLocal()
     users = db.query(models.User).all()
     db.close()
@@ -324,9 +327,8 @@ async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await status_msg.edit_text(f"✅ <b>Рассылка завершена!</b>\nПолучили: {count} из {len(users)}", parse_mode="HTML")
     
-    text = "Вы вернулись в меню."
     keyboard = [[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("Вы вернулись в меню.", reply_markup=InlineKeyboardMarkup(keyboard))
     return ConversationHandler.END
 
 # --- SEARCH FLOW ---
@@ -334,11 +336,9 @@ async def handle_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def search_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    await query.edit_message_caption(
-        "🔎 <b>Поиск пользователя</b>\nВведите <b>ID</b> или <b>Username</b> (без @):",
-        parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]])
-    )
+    text = "🔎 <b>Поиск пользователя</b>\nВведите <b>ID</b> или <b>Username</b> (без @):"
+    keyboard = [[InlineKeyboardButton("🔙 Отмена", callback_data="cancel")]]
+    await smart_edit(query, text, keyboard)
     return SEARCH_USER
 
 async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -351,7 +351,8 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = db.query(models.User).filter(models.User.username == query_text.replace("@", "")).first()
         
     if not user:
-        await update.message.reply_text("❌ Не найден.", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]))
+        keyboard = [[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]
+        await update.message.reply_text("❌ Не найден.", reply_markup=InlineKeyboardMarkup(keyboard))
         db.close()
         return ConversationHandler.END
     
@@ -366,7 +367,8 @@ async def handle_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📅 Рег: {user.created_at.strftime('%Y-%m-%d')}"
     )
     
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]))
+    keyboard = [[InlineKeyboardButton("🔒 Админ Панель", callback_data="admin_panel")]]
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
     db.close()
     return ConversationHandler.END
 
@@ -383,8 +385,7 @@ async def start_add_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<i>Пример 2:</i> <code>SECRET</code> (лимит 10000)"
     )
     keyboard = [[InlineKeyboardButton("🔙 Отмена", callback_data="cancel_add")]]
-    
-    await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    await smart_edit(query, text, keyboard)
     return ADD_PROMO_STATE
 
 async def handle_promo_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -406,9 +407,8 @@ async def handle_promo_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await update.message.reply_text(f"✅ <b>Успешно!</b>\nПромокод: <code>{code}</code>\nЛимит: {limit}")
     
-    text = "Вы вернулись в меню."
     keyboard = [[InlineKeyboardButton("🎫 К промокодам", callback_data="promo_menu")]]
-    await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text("Вы вернулись в меню.", reply_markup=InlineKeyboardMarkup(keyboard))
     return ConversationHandler.END
 
 async def cancel_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -422,10 +422,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer("Отменено")
     await admin_panel(update, context)
     return ConversationHandler.END
-
-async def broadcast_demo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer("Рассылка в разработке", show_alert=True)
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TOKEN).build()
@@ -466,13 +462,12 @@ if __name__ == '__main__':
     )
     
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(admin_handler) # Глобальный хендлер (приоритетный)
+    app.add_handler(admin_handler)
     app.add_handler(add_promo_handler)
     app.add_handler(give_balance_handler)
     app.add_handler(broadcast_handler)
     app.add_handler(search_handler)
     
-    # MENU HANDLERS
     app.add_handler(CallbackQueryHandler(give_menu, pattern="^give_menu$"))
     app.add_handler(CallbackQueryHandler(promo_menu, pattern="^promo_menu$"))
     app.add_handler(CallbackQueryHandler(list_promos, pattern="^list_promos$"))
