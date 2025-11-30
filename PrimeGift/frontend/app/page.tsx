@@ -123,9 +123,18 @@ export default function Home() {
           const casesRes = await axios.get(`${API_URL}/api/cases/`, { timeout: 5000 });
           if (mounted) setCases(casesRes.data);
 
-        } catch (e) {
+        } catch (e: any) {
           console.error("Init error:", e);
           if (mounted) {
+             // --- DEBUG ALERT ---
+             // Показываем ошибку пользователю, чтобы понять причину "Гостя"
+             let errorMsg = "Connection Error";
+             if (axios.isAxiosError(e)) {
+                 errorMsg = `API Error: ${e.message}`;
+                 if (e.response) errorMsg += ` (${e.response.status})`;
+             }
+             if (tg) tg.showAlert(`Ошибка входа: ${errorMsg}\nURL: ${process.env.NEXT_PUBLIC_API_URL}`);
+             
              if (!user) setUser({ id: 0, username: "Guest", balance_stars: 0, balance_tickets: 0 });
              setCases([
                  { id: 1, name: "Бесплатный", image_url: "/freenonfon.png", price: 0, currency: "tickets", is_limited: false },
@@ -747,6 +756,16 @@ function ProfileView({ user }: { user: User | null }) {
 function Loader() {
     return (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#050505] overflow-hidden font-sans">
+            {/* Falling Snow */}
+            {Array.from({ length: 20 }).map((_, i) => (
+                <div key={i} className="snowflake" style={{
+                    left: `${Math.random() * 100}%`,
+                    animationDuration: `${Math.random() * 3 + 2}s`,
+                    animationDelay: `${Math.random() * 2}s`,
+                    opacity: Math.random()
+                }}></div>
+            ))}
+
             {/* Background Effects */}
             <div className="absolute top-[-20%] left-[-20%] w-[70%] h-[70%] bg-violet-600/20 blur-[120px] rounded-full animate-pulse-glow"></div>
             <div className="absolute bottom-[-20%] right-[-20%] w-[70%] h-[70%] bg-blue-600/20 blur-[120px] rounded-full animate-pulse-glow" style={{ animationDelay: "1s" }}></div>
@@ -758,9 +777,10 @@ function Loader() {
                     <Gift className="w-24 h-24 text-white relative z-10 drop-shadow-[0_0_15px_rgba(139,92,246,0.8)] animate-bounce-slow" />
                 </div>
                 
-                <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-200 to-white tracking-tighter italic uppercase mb-8 drop-shadow-lg animate-pulse">
+                <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white via-violet-200 to-white tracking-tighter italic uppercase mb-2 drop-shadow-lg animate-pulse">
                     Prime Gift
                 </h1>
+                <span className="text-xs text-yellow-400 font-bold tracking-widest uppercase mb-8 animate-pulse">Happy New Year</span>
 
                 {/* Progress Bar */}
                 <div className="w-64 h-1.5 bg-zinc-800/50 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
