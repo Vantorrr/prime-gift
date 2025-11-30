@@ -151,7 +151,18 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     
     if update.callback_query:
-        await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        try:
+            await query.edit_message_caption(caption=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        except Exception:
+            # Если это не фото, а текст - пробуем редактировать текст
+            try:
+                await query.edit_message_text(text=text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+            except Exception as e:
+                logging.error(f"Edit message error: {e}")
+                # Если всё совсем плохо - шлем новое
+                await query.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+        
+        return ConversationHandler.END
     else:
         # Если вызвано как fallback (новым сообщением)
         await query.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
