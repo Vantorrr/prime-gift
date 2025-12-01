@@ -139,7 +139,7 @@ export default function Home() {
                  errorMsg = `API Error: ${e.message}`;
                  if (e.response) errorMsg += ` (${e.response.status})`;
              }
-             if (tg) tg.showAlert(`Ошибка API (${errorMsg})\n\n1. Проверь переменную NEXT_PUBLIC_API_URL в Railway.\n2. Сейчас она ведет на: ${API_URL}\n3. А должна вести на БЭКЕНД (FastAPI), а не на фронтенд.`);
+             if (tg) tg.showAlert(`Ошибка подключения к серверу:\n${errorMsg}\n\nАдрес API: ${API_URL}`);
              
              if (!user) setUser({ id: 0, username: "Guest", balance_stars: 0, balance_tickets: 0 });
              setCases([
