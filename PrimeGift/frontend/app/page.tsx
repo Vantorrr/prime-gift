@@ -6,8 +6,8 @@ import { Star, Hexagon, Gift, Users, Zap, Swords, Sparkles, ChevronRight, Copy, 
 import axios from "axios";
 
 // --- CONFIGURATION ---
-// Use Environment Variable or fallback (CHANGE THIS FALLBACK TO YOUR REAL BACKEND URL)
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://CHANGE-ME-TO-BACKEND-URL.up.railway.app";
+// HARDCODED CORRECT BACKEND URL
+const API_URL = "https://prime-gift-production.up.railway.app";
 
 interface User {
   id: number;
