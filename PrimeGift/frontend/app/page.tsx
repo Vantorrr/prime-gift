@@ -253,7 +253,7 @@ export default function Home() {
       </div>
 
       {/* Header with EXTRA EXTRA Safe Area Padding */}
-      <header className="sticky top-0 z-50 bg-[#05050a]/80 backdrop-blur-xl px-4 py-3 flex justify-between items-center border-b border-white/5 shadow-lg mt-0 pt-20 pb-4">
+      <header className="sticky top-0 z-50 bg-[#05050a]/80 backdrop-blur-xl px-4 py-3 flex justify-between items-center border-b border-white/5 shadow-lg mt-0 pt-[88px] pb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-700/50 to-zinc-900/50 p-[1px] shadow-inner">
              <div className="w-full h-full rounded-xl bg-[#0a0a0f] overflow-hidden flex items-center justify-center">
