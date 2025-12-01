@@ -6,8 +6,9 @@ import { Star, Hexagon, Gift, Users, Zap, Swords, Sparkles, ChevronRight, Copy, 
 import axios from "axios";
 
 // --- CONFIGURATION ---
-// HARDCODED CORRECT BACKEND URL
-const API_URL = "https://prime-gift-production.up.railway.app";
+// PROXY SETUP: Requests go to Frontend -> Next.js proxies to Backend
+// This bypasses CORS completely.
+const API_URL = "";
 
 interface User {
   id: number;
