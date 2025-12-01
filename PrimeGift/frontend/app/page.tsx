@@ -6,8 +6,8 @@ import { Star, Hexagon, Gift, Users, Zap, Swords, Sparkles, ChevronRight, Copy, 
 import axios from "axios";
 
 // --- CONFIGURATION ---
-// HARDCODED API URL
-const API_URL = "https://motivated-comfort-production.up.railway.app";
+// Use Environment Variable or fallback (CHANGE THIS FALLBACK TO YOUR REAL BACKEND URL)
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://CHANGE-ME-TO-BACKEND-URL.up.railway.app";
 
 interface User {
   id: number;
@@ -139,7 +139,7 @@ export default function Home() {
                  errorMsg = `API Error: ${e.message}`;
                  if (e.response) errorMsg += ` (${e.response.status})`;
              }
-             if (tg) tg.showAlert(`Ошибка входа: ${errorMsg}\nURL: ${API_URL}`);
+             if (tg) tg.showAlert(`Ошибка API (${errorMsg})\n\n1. Проверь переменную NEXT_PUBLIC_API_URL в Railway.\n2. Сейчас она ведет на: ${API_URL}\n3. А должна вести на БЭКЕНД (FastAPI), а не на фронтенд.`);
              
              if (!user) setUser({ id: 0, username: "Guest", balance_stars: 0, balance_tickets: 0 });
              setCases([
