@@ -110,7 +110,9 @@ export default function Home() {
       const tg = typeof window !== "undefined" && window.Telegram?.WebApp;
       
       if (tg?.initData) {
-        tg.ready(); tg.expand();
+        tg.ready(); 
+        tg.expand();
+        try { tg.requestFullscreen(); } catch (e) {} // Force Fullscreen for mobile
         tg.setHeaderColor("#05050a"); // Match new background
         tg.setBackgroundColor("#05050a");
         try {
@@ -250,8 +252,8 @@ export default function Home() {
           <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[100px] rounded-full animate-pulse-glow delay-1000"></div>
       </div>
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#05050a]/70 backdrop-blur-xl px-4 py-3 flex justify-between items-center border-b border-white/5 shadow-lg">
+      {/* Header with Safe Area Padding */}
+      <header className="sticky top-0 z-50 bg-[#05050a]/70 backdrop-blur-xl px-4 py-3 flex justify-between items-center border-b border-white/5 shadow-lg mt-4 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-700/50 to-zinc-900/50 p-[1px] shadow-inner">
              <div className="w-full h-full rounded-xl bg-[#0a0a0f] overflow-hidden flex items-center justify-center">
